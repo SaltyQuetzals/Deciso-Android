@@ -2,6 +2,7 @@ package com.example.quont.queueband;
 
 import android.widget.ImageView;
 
+import java.text.AttributedCharacterIterator;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -9,7 +10,7 @@ import java.util.Map;
  * Created by quont on 6/19/2016.
  */
 public class Song {
-    private String title, author, source, art;
+    private String title, author, source, art, id;
     private int votes;
 
     public Song() {
@@ -18,12 +19,13 @@ public class Song {
         source = "";
         votes = -1;
     }
-    public Song(String title, String author, String source, int votes, String artURL) {
+    public Song(String title, String author, String source, int votes, String artURL, String id) {
         this.title = title;
         this.author = author;
         this.source = source;
         this.votes = votes;
         this.art = artURL;
+        this.id = id;
     }
 
     public String getTitle()    {
@@ -66,4 +68,7 @@ public class Song {
         this.art = art;
     }
 
+    public String getId() {
+        return id;
+    }
 }

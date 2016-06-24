@@ -1,26 +1,44 @@
 package com.example.quont.queueband;
 
+import android.app.Activity;
+import android.content.Intent;
+import android.content.pm.ActivityInfo;
 import android.net.Uri;
+import android.os.Bundle;
 import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.Snackbar;
-import android.support.v7.app.AppCompatActivity;
-import android.support.v7.widget.Toolbar;
-
 import android.support.v4.app.Fragment;
 import android.support.v4.app.FragmentManager;
 import android.support.v4.app.FragmentPagerAdapter;
 import android.support.v4.view.ViewPager;
-import android.os.Bundle;
+import android.support.v7.app.AppCompatActivity;
+import android.support.v7.widget.Toolbar;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
-
+import android.widget.ImageView;
 import android.widget.TextView;
 
-public class MainActivity extends AppCompatActivity implements QueuedFragment.OnFragmentInteractionListener{
+import com.android.volley.Request;
+import com.android.volley.RequestQueue;
+import com.android.volley.Response;
+import com.android.volley.VolleyError;
+import com.android.volley.toolbox.JsonObjectRequest;
+import com.android.volley.toolbox.Volley;
+import com.squareup.picasso.Picasso;
 
+import org.greenrobot.eventbus.EventBus;
+import org.greenrobot.eventbus.Subscribe;
+import org.greenrobot.eventbus.ThreadMode;
+import org.json.JSONException;
+import org.json.JSONObject;
+
+public class MainActivity extends AppCompatActivity implements SuggestedFragment.OnFragmentInteractionListener, QueuedFragment.OnFragmentInteractionListener {
+
+    private static String code;
     /**
      * The {@link android.support.v4.view.PagerAdapter} that will provide
      * fragments for each of the sections. We use a
@@ -30,12 +48,11 @@ public class MainActivity extends AppCompatActivity implements QueuedFragment.On
      * {@link android.support.v4.app.FragmentStatePagerAdapter}.
      */
     private SectionsPagerAdapter mSectionsPagerAdapter;
-
     /**
      * The {@link ViewPager} that will host the section contents.
      */
     private ViewPager mViewPager;
-    private String code;
+    private JSONObject nowPlaying;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -62,9 +79,10 @@ public class MainActivity extends AppCompatActivity implements QueuedFragment.On
                         .setAction("Action", null).show();
             }
         });
-
+        Intent serviceIntent = new Intent(getBaseContext(), SocketService.class);
+        serviceIntent.putExtras(getIntent().getExtras());
+        startService(serviceIntent);
     }
-
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
@@ -93,25 +111,65 @@ public class MainActivity extends AppCompatActivity implements QueuedFragment.On
 
     }
 
+    @Override
+    protected void onStart() {
+        EventBus.getDefault().register(this);
+        super.onStart();
+    }
+
+
+    @Override
+    protected void onStop() {
+        EventBus.getDefault().unregister(this);
+        super.onStop();
+    }
+
+    @Subscribe(threadMode = ThreadMode.MAIN)
+    public void onEventMainThread(final SuggestionEvent event) throws JSONException {
+        mSectionsPagerAdapter.suggestionsFragment.addSong(event.jsonObject);
+    }
+
+    @Subscribe(threadMode = ThreadMode.MAIN)
+    public void onEventMainThread(final ChangedEvent event) throws JSONException {
+        mSectionsPagerAdapter.nowPlayingFragment.setData(event.jsonObject.getJSONObject("song"));
+        mSectionsPagerAdapter.queuedFragment.addSong(event.jsonObject.getJSONObject("song"));
+    }
+
+    @Subscribe(threadMode = ThreadMode.MAIN)
+    public void onEventMainThread(final SuggestionRemoveEvent event) throws JSONException {
+        mSectionsPagerAdapter.suggestionsFragment.removeSong(event.string);
+    }
+
+
     /**
      * A placeholder fragment containing a simple view.
      */
-    public static class PlaceholderFragment extends Fragment {
+    public static class NowPlayingFragment extends Fragment {
         /**
          * The fragment argument representing the section number for this
          * fragment.
          */
         private static final String ARG_SECTION_NUMBER = "section_number";
+        TextView nowplayingtitle, nowplayingauthor, nowplayingsource;
+        ImageView albumArt;
 
-        public PlaceholderFragment() {
+        public NowPlayingFragment() {
+        }
+
+        public void setUserVisibleHint(boolean isVisibleToUser) {
+            super.setUserVisibleHint(isVisibleToUser);
+            if(isVisibleToUser) {
+                Activity a = getActivity();
+                if(a != null) a.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
+            }
         }
 
         /**
          * Returns a new instance of this fragment for the given section
          * number.
          */
-        public static PlaceholderFragment newInstance(int sectionNumber) {
-            PlaceholderFragment fragment = new PlaceholderFragment();
+        public static NowPlayingFragment newInstance(int sectionNumber) {
+            NowPlayingFragment fragment = new NowPlayingFragment();
             Bundle args = new Bundle();
             args.putInt(ARG_SECTION_NUMBER, sectionNumber);
             fragment.setArguments(args);
@@ -122,9 +180,47 @@ public class MainActivity extends AppCompatActivity implements QueuedFragment.On
         public View onCreateView(LayoutInflater inflater, ViewGroup container,
                                  Bundle savedInstanceState) {
             View rootView = inflater.inflate(R.layout.fragment_main, container, false);
-            TextView textView = (TextView) rootView.findViewById(R.id.section_label);
-            textView.setText(getString(R.string.section_format, getArguments().getInt(ARG_SECTION_NUMBER)));
+            nowplayingtitle = (TextView) rootView.findViewById(R.id.nowplayingtitle);
+            nowplayingauthor = (TextView) rootView.findViewById(R.id.nowplayingauthor);
+            nowplayingsource = (TextView) rootView.findViewById(R.id.nowplayingsource);
+            albumArt = (ImageView) rootView.findViewById(R.id.albumArt);
+            initializeData();
             return rootView;
+        }
+
+        public void setData(JSONObject data) throws JSONException {
+            nowplayingtitle.setText(data.getString("title"));
+            nowplayingauthor.setText(data.getString("author"));
+            nowplayingsource.setText(data.getString("source"));
+            if (!data.getString("thumbnail").equals("")) {
+                Picasso.with(getContext()).load(data.getString("thumbnail")).resize(250, 250).centerCrop().into(albumArt);
+            } else {
+                nowplayingtitle.setText("No song is playing");
+            }
+        }
+
+        public void initializeData() {
+            RequestQueue queue = Volley.newRequestQueue(getContext());
+            String url = "https://deciso.audio/" + code + ".json";
+            // Request a string response from the provided URL.
+            JsonObjectRequest jsonObjectRequest = new JsonObjectRequest(Request.Method.GET, url, null,
+                    new Response.Listener<JSONObject>() {
+                        @Override
+                        public void onResponse(final JSONObject response) {
+                            // Display the first 500 characters of the response string.
+                            try {
+                                setData(response.getJSONObject("nowplaying"));
+                            } catch (JSONException e) {
+                                e.printStackTrace();
+                            }
+                        }
+                    }, new Response.ErrorListener() {
+                @Override
+                public void onErrorResponse(VolleyError error) {
+                }
+            });
+            queue.add(jsonObjectRequest);
+            queue.start();
         }
     }
 
@@ -133,24 +229,30 @@ public class MainActivity extends AppCompatActivity implements QueuedFragment.On
      * one of the sections/tabs/pages.
      */
     public class SectionsPagerAdapter extends FragmentPagerAdapter {
+        NowPlayingFragment nowPlayingFragment;
+        SuggestedFragment suggestionsFragment;
+        QueuedFragment queuedFragment;
 
         public SectionsPagerAdapter(FragmentManager fm) {
             super(fm);
+            queuedFragment = QueuedFragment.newInstance("QueuedFragment", "Instance 1", code);
+            nowPlayingFragment = NowPlayingFragment.newInstance(1);
+            suggestionsFragment = SuggestedFragment.newInstance("SuggestedFragment", "Instance 1", code);
         }
 
         @Override
         public Fragment getItem(int position) {
             // getItem is called to instantiate the fragment for the given page.
-            // Return a PlaceholderFragment (defined as a static inner class below).
+            // Return a NowPlayingFragment (defined as a static inner class below).
             switch (position) {
                 case 0:
-                    return QueuedFragment.newInstance("QueuedFragment", "Instance 1", code);
+                    return queuedFragment;
                 case 1:
-                    return PlaceholderFragment.newInstance(position + 1);
+                    return nowPlayingFragment;
                 case 2:
-                    return PlaceholderFragment.newInstance(position + 1);
+                    return suggestionsFragment;
                 default:
-                    return PlaceholderFragment.newInstance(0);
+                    return NowPlayingFragment.newInstance(0);
             }
         }
 
@@ -168,7 +270,7 @@ public class MainActivity extends AppCompatActivity implements QueuedFragment.On
                 case 1:
                     return "Now Playing";
                 case 2:
-                    return "SECTION 3";
+                    return "Suggestions";
             }
             return null;
         }

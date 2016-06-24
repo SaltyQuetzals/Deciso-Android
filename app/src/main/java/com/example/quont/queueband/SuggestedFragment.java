@@ -9,7 +9,6 @@ import android.support.annotation.Nullable;
 import android.support.v4.app.Fragment;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
-import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -31,12 +30,12 @@ import java.util.List;
 /**
  * A simple {@link Fragment} subclass.
  * Activities that contain this fragment must implement the
- * {@link QueuedFragment.OnFragmentInteractionListener} interface
+ * {@link SuggestedFragment.OnFragmentInteractionListener} interface
  * to handle interaction events.
- * Use the {@link QueuedFragment#newInstance} factory method to
+ * Use the {@link SuggestedFragment#newInstance} factory method to
  * create an instance of this fragment.
  */
-public class QueuedFragment extends Fragment {
+public class SuggestedFragment extends Fragment {
     // TODO: Rename parameter arguments, choose names that match
     // the fragment initialization parameters, e.g. ARG_ITEM_NUMBER
     private static final String ARG_PARAM1 = "param1";
@@ -52,17 +51,8 @@ public class QueuedFragment extends Fragment {
     public RecyclerView recyclerView;
 
 
-
-    public QueuedFragment() {
+    public SuggestedFragment() {
         // Required empty public constructor
-    }
-
-    public void setUserVisibleHint(boolean isVisibleToUser) {
-        super.setUserVisibleHint(isVisibleToUser);
-        if(isVisibleToUser) {
-            Activity a = getActivity();
-            if(a != null) a.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
-        }
     }
 
     /**
@@ -71,11 +61,11 @@ public class QueuedFragment extends Fragment {
      *
      * @param param1 Parameter 1.
      * @param param2 Parameter 2.
-     * @return A new instance of fragment QueuedFragment.
+     * @return A new instance of fragment SuggestedFragment.
      */
     // TODO: Rename and change types and number of parameters
-    public static QueuedFragment newInstance(String param1, String param2, String code) {
-        QueuedFragment fragment = new QueuedFragment();
+    public static SuggestedFragment newInstance(String param1, String param2, String code) {
+        SuggestedFragment fragment = new SuggestedFragment();
         fragment.setCode(code);
         Bundle args = new Bundle();
         args.putString(ARG_PARAM1, param1);
@@ -143,7 +133,7 @@ public class QueuedFragment extends Fragment {
      * fragment to allow an interaction in this fragment to be communicated
      * to the activity and potentially other fragments contained in that
      * activity.
-     * <p>
+     * <p/>
      * See the Android Training lesson <a href=
      * "http://developer.android.com/training/basics/fragments/communicating.html"
      * >Communicating with Other Fragments</a> for more information.
@@ -153,7 +143,7 @@ public class QueuedFragment extends Fragment {
         void onFragmentInteraction(Uri uri);
     }
 
-    public void initializeData()    {
+    public void initializeData() {
         songs.clear();
         recyclerView.removeAllViews();
         recyclerView.invalidate();
@@ -166,8 +156,8 @@ public class QueuedFragment extends Fragment {
                     public void onResponse(final JSONObject response) {
                         // Display the first 500 characters of the response string.
                         try {
-                            for (int i = response.getJSONArray("queue").length()-1; i >= 0; i--)  {
-                                songs.add(new Song(response.getJSONArray("queue").getJSONObject(i).getString("title"),response.getJSONArray("queue").getJSONObject(i).getString("author"), response.getJSONArray("queue").getJSONObject(i).getString("source"), response.getJSONArray("queue").getJSONObject(i).getInt("points"), response.getJSONArray("queue").getJSONObject(i).getString("thumbnail"), response.getJSONArray("queue").getJSONObject(i).getString("id")));
+                            for (int i = response.getJSONArray("suggestions").length() - 1; i >= 0; i--) {
+                                songs.add(new Song(response.getJSONArray("suggestions").getJSONObject(i).getString("title"), response.getJSONArray("suggestions").getJSONObject(i).getString("author"), response.getJSONArray("suggestions").getJSONObject(i).getString("source"), response.getJSONArray("suggestions").getJSONObject(i).getInt("points"), response.getJSONArray("suggestions").getJSONObject(i).getString("thumbnail"), response.getJSONArray("suggestions").getJSONObject(i).getString("id")));
                             }
 
                             recyclerView.getAdapter().notifyDataSetChanged();
@@ -185,8 +175,25 @@ public class QueuedFragment extends Fragment {
     }
 
     public void addSong(JSONObject jsonObject) throws JSONException {
-        songs.add(0, new Song(jsonObject.getString("title"), jsonObject.getString("author"), jsonObject.getString("source"), jsonObject.getInt("points"), jsonObject.getString("thumbnail"), jsonObject.getString("id")));
+        songs.add(new Song(jsonObject.getString("title"), jsonObject.getString("author"), jsonObject.getString("source"), jsonObject.getInt("points"), jsonObject.getString("thumbnail"), jsonObject.getString("id")));
         recyclerView.getAdapter().notifyDataSetChanged();
+    }
+
+    public void removeSong(String id)   {
+        for (int i = 0; i < songs.size(); i++)  {
+            if (songs.get(i).getId().equals(id))    {
+                songs.remove(i);
+                recyclerView.getAdapter().notifyDataSetChanged();
+            }
+        }
+    }
+
+    public void setUserVisibleHint(boolean isVisibleToUser) {
+        super.setUserVisibleHint(isVisibleToUser);
+        if(isVisibleToUser) {
+            Activity a = getActivity();
+            if(a != null) a.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
+        }
     }
 
     @Override

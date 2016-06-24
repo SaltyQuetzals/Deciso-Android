@@ -3,8 +3,24 @@
     xmlns:tools="http://schemas.android.com/tools"
     tools:context="com.example.quont.queueband.MainActivity">
     <item
+        android:id="@+id/users"
+        android:orderInCategory="100"
+        android:title="Users Connected"
+        app:showAsAction="never" />
+    <item
         android:id="@+id/action_settings"
         android:orderInCategory="100"
         android:title="@string/action_settings"
+        app:showAsAction="never" />
+    <item
+        android:id="@+id/skip"
+        android:orderInCategory="100"
+        android:title="Request Skip"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/exit"
+        android:orderInCategory="100"
+        android:title="Exit Room"
         app:showAsAction="never" />
 </menu>
