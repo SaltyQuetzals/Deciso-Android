@@ -52,7 +52,6 @@ public class MainActivity extends AppCompatActivity implements SuggestedFragment
      * The {@link ViewPager} that will host the section contents.
      */
     private ViewPager mViewPager;
-    private JSONObject nowPlaying;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -75,13 +74,17 @@ public class MainActivity extends AppCompatActivity implements SuggestedFragment
         fab.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                Snackbar.make(view, "Replace with your own action", Snackbar.LENGTH_LONG)
-                        .setAction("Action", null).show();
+                switchToSearch();
             }
         });
         Intent serviceIntent = new Intent(getBaseContext(), SocketService.class);
         serviceIntent.putExtras(getIntent().getExtras());
         startService(serviceIntent);
+    }
+
+    private void switchToSearch() {
+        Intent intent = new Intent(this, Search.class);
+        startActivity(intent);
     }
 
     @Override
@@ -140,6 +143,16 @@ public class MainActivity extends AppCompatActivity implements SuggestedFragment
         mSectionsPagerAdapter.suggestionsFragment.removeSong(event.string);
     }
 
+//    @Subscribe(threadMode = ThreadMode.MAIN)
+//    public void onEventMainThread(final VoteUpdateEvent event) throws JSONException {
+//        for (int i = 0; i < mSectionsPagerAdapter.suggestionsFragment.getSongs().size(); i++) {
+//            if (event.jsonObject.getString("id").equals(mSectionsPagerAdapter.suggestionsFragment.getSongs())) {
+//                mSectionsPagerAdapter.suggestionsFragment.getSongs().set(i, new Song(event.jsonObject.getString("title"), event.jsonObject.getString("author"), event.jsonObject.getString("source"), event.jsonObject.getInt("points"), event.jsonObject.getString("thumbnail"), event.jsonObject.getString("id")));
+//            }
+//        }
+//        mSectionsPagerAdapter.queuedFragment.initializeData();
+//    }
+
 
     /**
      * A placeholder fragment containing a simple view.
@@ -150,6 +163,7 @@ public class MainActivity extends AppCompatActivity implements SuggestedFragment
          * fragment.
          */
         private static final String ARG_SECTION_NUMBER = "section_number";
+        private ViewGroup viewGroup;
         TextView nowplayingtitle, nowplayingauthor, nowplayingsource;
         ImageView albumArt;
 
@@ -158,9 +172,9 @@ public class MainActivity extends AppCompatActivity implements SuggestedFragment
 
         public void setUserVisibleHint(boolean isVisibleToUser) {
             super.setUserVisibleHint(isVisibleToUser);
-            if(isVisibleToUser) {
+            if (isVisibleToUser) {
                 Activity a = getActivity();
-                if(a != null) a.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
+                if (a != null) a.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
             }
         }
 
@@ -189,6 +203,7 @@ public class MainActivity extends AppCompatActivity implements SuggestedFragment
         }
 
         public void setData(JSONObject data) throws JSONException {
+
             nowplayingtitle.setText(data.getString("title"));
             nowplayingauthor.setText(data.getString("author"));
             nowplayingsource.setText(data.getString("source"));
@@ -209,6 +224,7 @@ public class MainActivity extends AppCompatActivity implements SuggestedFragment
                         public void onResponse(final JSONObject response) {
                             // Display the first 500 characters of the response string.
                             try {
+                                Log.i("nowplaying", String.valueOf(response.getJSONObject("nowplaying")));
                                 setData(response.getJSONObject("nowplaying"));
                             } catch (JSONException e) {
                                 e.printStackTrace();

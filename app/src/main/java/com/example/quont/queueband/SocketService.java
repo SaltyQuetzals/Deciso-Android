@@ -1,33 +1,18 @@
 package com.example.quont.queueband;
 
 import android.app.Service;
-import android.app.usage.UsageEvents;
 import android.content.Intent;
-import android.os.Binder;
 import android.os.IBinder;
 import android.support.annotation.Nullable;
 import android.util.Log;
-import android.widget.ListView;
-import android.widget.SimpleAdapter;
-
-import com.android.volley.Request;
-import com.android.volley.RequestQueue;
-import com.android.volley.Response;
-import com.android.volley.VolleyError;
-import com.android.volley.toolbox.StringRequest;
-import com.android.volley.toolbox.Volley;
 
 import org.greenrobot.eventbus.EventBus;
-import org.greenrobot.eventbus.Subscribe;
-import org.greenrobot.eventbus.ThreadMode;
-import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -113,7 +98,12 @@ public class SocketService extends Service {
                         }).on("song update", new Emitter.Listener() {
                             @Override
                             public void call(Object... args) {
-                                Log.i("SocketService-update", args[0].toString());
+                                try {
+                                    Log.i("Song-update", args[0].toString());
+                                    EventBus.getDefault().post(new VoteUpdateEvent(new JSONObject(args[0].toString())));
+                                } catch (JSONException e) {
+                                    e.printStackTrace();
+                                }
                             }
                         }).on("song remove", new Emitter.Listener() {
                             @Override
@@ -181,7 +171,6 @@ public class SocketService extends Service {
         // stopped, so return sticky.
         return START_STICKY;
     }
-
 
     @Override
     public void onDestroy() {
